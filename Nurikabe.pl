@@ -81,7 +81,6 @@ create_grid(_, _).
 initialize_fixed_cells([]).
 initialize_fixed_cells([(Row, Col, Value)|Rest]) :-
     assertz(fxd_cell(Row, Col, Value)),
-    retract(solve_cell(Row, Col, empty)),
     assertz(solve_cell(Row, Col, green)),
     initialize_fixed_cells(Rest).
 % Predicate to print the current grid state
@@ -128,9 +127,17 @@ check_for_no_2x2_seas([]).
 check_for_no_2x2_seas([(X,Y)|Rest]):-
     check_for_no_2x2_sea(X,Y) , check_for_no_2x2_seas(Rest).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-no_2_by_2_sea:-
-    findall((X,Y),solve_cell(X,Y,blue),SeaCells),
-    check_for_no_2x2_seas(SeaCells).
+validate_no_2_by_2_sea(Rows, Cols) :-
+    \+ (between(1, Rows, Row),
+        between(1, Cols, Col),
+        Row1 is Row + 1, Col1 is Col + 1,
+        solve_cell(Row, Col, blue),
+        solve_cell(Row1, Col, blue),
+        solve_cell(Row, Col1, blue),
+        solve_cell(Row1, Col1, blue)).
+% ? This Is The Final Predicate That Validate The Mentioned Rule :
+no_2x2_sea:-
+    validate_no_2_by_2_sea(7,7).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 sea_helper([] , Sea , Sea).
 sea_helper([(X,Y)|Rest] , Vis , Sea):-
@@ -146,25 +153,14 @@ sea_helper([(X,Y)|Rest] , Vis , Sea):-
 sea((X,Y),Sea):-
     sea_helper([(X,Y)],[],Sea).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-seas_helper([(X,Y)|Rest], Vis , Acc ,Seas):-
-    \+member((X,Y),Vis),
-    sea((X,Y),Sea),
-    append(Acc, [Sea] ,NewSeas),
-    append(Vis, Sea ,NewVis),
-    seas_helper(Rest,NewVis,NewSeas,Seas).
-seas_helper([(X,Y)|Rest],Vis,Acc,Seas):-
-    member((X,Y),Vis),
-    seas_helper(Rest,Vis,Acc,Seas).
-seas_helper([],_,Seas,Seas).
-% ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-seas(SeaCells,Seas):-
-    seas_helper(SeaCells,[],[],Seas).
-% ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 one_sea:-
-    findall((X,Y),solve_cell(X,Y,blue),SeaCells),
-    seas(SeaCells,Seas),
-    length(Seas, L),
-    L =:= 1.
+    findall((X,Y),solve_cell(X,Y,blue),BlueCells),
+    BlueCells \= [],
+    BlueCells = [(X,Y)|_],
+    sea((X,Y), Sea),
+    length(BlueCells, BlueCount),
+    length(Sea, SeaCount),
+    BlueCount =:= SeaCount.
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 island_helper([],Island,Island).
 island_helper([(X,Y)|Rest],Vis,Island):-
@@ -227,6 +223,8 @@ check_islands_each_has_size_equals_fixed_cell_number([Island|Islands]):-
     check_islands_each_has_size_equals_fixed_cell_number(Islands).
 % * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 % ! The Solver :
+% ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 % ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % * Logical Steps :
 % ? I - Solving For Fixed Cells With Clue Equals One :
@@ -459,7 +457,8 @@ solve_logically:-
     solve_for_no_2x2_blue_blocks,
     solve_for_unreachable_cells.
 solved:-
-    no_2_by_2_sea,
+    no_2x2_sea,
     one_sea,
     island_number_equals_size,
     one_fixed_cell_in_island.
+

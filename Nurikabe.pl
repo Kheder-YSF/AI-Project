@@ -1,3 +1,4 @@
+grid(7,7).
 % ! Solved Nurikabe To Build Up And Test The Rules Of The Puzzle:
 % ? Fixed Cells :
 %fxd_cell(1,2,3).
@@ -81,10 +82,13 @@ create_grid(_, _).
 initialize_fixed_cells([]).
 initialize_fixed_cells([(Row, Col, Value)|Rest]) :-
     assertz(fxd_cell(Row, Col, Value)),
+    retract(solve_cell(Row,Col,empty)),
     assertz(solve_cell(Row, Col, green)),
     initialize_fixed_cells(Rest).
 % Predicate to print the current grid state
-print_grid(Rows, Cols) :-
+print_grid:-
+    grid(R,C),print_grid(R,C).
+print_grid_helper(Rows, Cols) :-
     between(1, Rows, Row),
     between(1, Cols, Col),
     (fxd_cell(Row, Col, Value) -> write(Value) ; (solve_cell(Row, Col, State) -> print_cell(State) ; write(' '))),
@@ -105,17 +109,17 @@ color_cell_green(X,Y):-
 % * Solved Checkers :
 % * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-within_the_grid(X,Y,R,C):-
-    X > 0 , X =< R , Y > 0 , Y =< C.
+within_the_grid(X,Y):-
+    grid(R,C) , X > 0 , X =< C , Y > 0 , Y =< R.
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-neighbor((X,Y),(Xl,Y)):- Xl is X-1 , within_the_grid(Xl,Y,7,7).
-neighbor((X,Y),(Xr,Y)):- Xr is X+1 , within_the_grid(Xr,Y,7,7).
-neighbor((X,Y),(X,Yu)):- Yu is Y-1 , within_the_grid(X,Yu,7,7).
-neighbor((X,Y),(X,Yd)):- Yd is Y+1 , within_the_grid(X,Yd,7,7).
+neighbor((X,Y),(Xl,Y)):- Xl is X-1 , within_the_grid(Xl,Y).
+neighbor((X,Y),(Xr,Y)):- Xr is X+1 , within_the_grid(Xr,Y).
+neighbor((X,Y),(X,Yu)):- Yu is Y-1 , within_the_grid(X,Yu).
+neighbor((X,Y),(X,Yd)):- Yd is Y+1 , within_the_grid(X,Yd).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 check_for_no_2x2_sea(X,Y):-
     Xr is X + 1 , Yd is Y + 1 , 
-    within_the_grid(X,Y,7,7),
+    within_the_grid(X,Y),
     (
         \+solve_cell(X,Y,blue);
         \+solve_cell(Xr,Y,blue);
@@ -137,7 +141,7 @@ validate_no_2_by_2_sea(Rows, Cols) :-
         solve_cell(Row1, Col1, blue)).
 % ? This Is The Final Predicate That Validate The Mentioned Rule :
 no_2x2_sea:-
-    validate_no_2_by_2_sea(7,7).
+    grid(R,C),validate_no_2_by_2_sea(R,C).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 sea_helper([] , Sea , Sea).
 sea_helper([(X,Y)|Rest] , Vis , Sea):-
@@ -224,7 +228,28 @@ check_islands_each_has_size_equals_fixed_cell_number([Island|Islands]):-
 % * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 % ! The Solver :
 % ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+solve_nurikabe :-
+    % Get all empty cells
+    findall((Row, Col), solve_cell(Row, Col, empty), EmptyCells),
+    % Try to solve the puzzle
+    solve_cells(EmptyCells).
 
+% Base case: no more cells to solve
+solve_cells([]) :- 
+    no_2x2_sea, 
+    one_sea, 
+    one_fixed_cell_in_island, 
+    island_number_equals_size.
+
+% Recursive case: try to solve for one cell and continue
+solve_cells([(Row, Col)|Rest]) :-
+    % Try to color the cell blue
+    color_cell_blue(Row, Col),
+    no_2x2_sea,
+    solve_cells(Rest);
+    % If it fails, backtrack and try to color the cell green
+    color_cell_green(Row, Col), 
+    solve_cells(Rest).
 % ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % * Logical Steps :
 % ? I - Solving For Fixed Cells With Clue Equals One :
@@ -268,39 +293,39 @@ seas_one_way_out_helper([(X,Y)|Rest]):-
     sea_one_way_out(X,Y) ,seas_one_way_out_helper(Rest).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 sea_one_way_out(X,Y):-
-    Xr is X + 1 ,  Xl is X-1  , Yu is Y-1 ,  Yd is Y+1 , 
+    grid(R,C) , Xr is X + 1 ,  Xl is X-1  , Yu is Y-1 ,  Yd is Y+1 , 
     (
         (
             Xl > 0,
             solve_cell(Xl,Y,empty),
-            (solve_cell(Xr,Y,green);Xr > 7),
+            (solve_cell(Xr,Y,green);Xr > C),
             (solve_cell(X,Yu,green);Yu =< 0),
-            (solve_cell(X,Yd,green);Yd > 7),
+            (solve_cell(X,Yd,green);Yd > R),
             color_cell_blue(Xl,Y)
         )
         ;
         (
-            Xr =< 7 ,
+            Xr =< C ,
             (solve_cell(Xl,Y,green);Xl =< 0),
             solve_cell(Xr,Y,empty),
             (solve_cell(X,Yu,green);Yu =< 0),
-            (solve_cell(X,Yd,green);Yd > 7),
+            (solve_cell(X,Yd,green);Yd > R),
             color_cell_blue(Xr,Y)
         )
         ;
         (
             Yu > 0 ,
             (solve_cell(Xl,Y,green);Xl =< 0),
-            (solve_cell(Xr,Y,green);Xr > 7),
+            (solve_cell(Xr,Y,green);Xr > C),
             solve_cell(X,Yu,empty),
-            (solve_cell(X,Yd,green);Yd > 7),
+            (solve_cell(X,Yd,green);Yd > R),
             color_cell_blue(X,Yu)
         )
         ;
         (
-            Yd =< 7 ,
+            Yd =< R ,
             (solve_cell(Xl,Y,green);Xl =< 0),
-            (solve_cell(Xr,Y,green);Xr > 7),
+            (solve_cell(Xr,Y,green);Xr > C),
             (solve_cell(X,Yu,green);Yu =< 0),
             solve_cell(X,Yd,empty),
             color_cell_blue(X,Yd)
@@ -445,8 +470,8 @@ find_paths((X,Y),L,Paths):-
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 init:-
-    initialize_grid(7,7,[(1,2,3),(1,6,1),(3,1,2),(3,4,1),(5,2,1),(5,5,2),(6,3,2),(7,1,1),(7,5,1),(7,7,6)]).
-    %initialize_grid(8,8,[(1,1,3),(1,7,2),(2,3,2),(3,7,6),(4,3,2),(6,6,2),(6,8,3),(7,2,3),(7,7,1),(8,4,3)]).
+    grid(R,C),
+    initialize_grid(R,C,[(1,2,3),(1,6,1),(3,1,2),(3,4,1),(5,2,1),(5,5,2),(6,3,2),(7,1,1),(7,5,1),(7,7,6)]).
 solve_logically:-
     solve_for_fixed_cells_with_clue_equals_one,
     solve_for_cells_with_all_neighbors_blue,
@@ -461,4 +486,3 @@ solved:-
     one_sea,
     island_number_equals_size,
     one_fixed_cell_in_island.
-

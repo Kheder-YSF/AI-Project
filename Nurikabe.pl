@@ -1,4 +1,3 @@
-grid(7,7).
 % ! Solved Nurikabe To Build Up And Test The Rules Of The Puzzle:
 % ? Fixed Cells :
 %fxd_cell(1,2,3).
@@ -87,7 +86,7 @@ initialize_fixed_cells([(Row, Col, Value)|Rest]) :-
     initialize_fixed_cells(Rest).
 % Predicate to print the current grid state
 print_grid:-
-    grid(R,C),print_grid(R,C).
+    grid(R,C),\+print_grid_helper(R,C).
 print_grid_helper(Rows, Cols) :-
     between(1, Rows, Row),
     between(1, Cols, Col),
@@ -228,7 +227,7 @@ check_islands_each_has_size_equals_fixed_cell_number([Island|Islands]):-
 % * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 % ! The Solver :
 % ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-solve_nurikabe :-
+solve_backtracking :-
     % Get all empty cells
     findall((Row, Col), solve_cell(Row, Col, empty), EmptyCells),
     % Try to solve the puzzle
@@ -236,11 +235,8 @@ solve_nurikabe :-
 
 % Base case: no more cells to solve
 solve_cells([]) :- 
-    no_2x2_sea, 
-    one_sea, 
-    one_fixed_cell_in_island, 
-    island_number_equals_size.
-
+    solved , nl , print_grid , nl , writeln("Nurikabe Solved :)")
+    .
 % Recursive case: try to solve for one cell and continue
 solve_cells([(Row, Col)|Rest]) :-
     % Try to color the cell blue
@@ -259,7 +255,7 @@ solve_for_fixed_cells_with_clue_equals_one:-
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 color_list_blue([]).
 color_list_blue([(X,Y)|Rest]):-
-    color_cell_blue(X,Y) , color_list_blue(Rest).
+    color_cell_blue(X,Y) , print_grid , nl , nl , color_list_blue(Rest).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 color_the_neighbors_of_the_fixed_cells_with_clue_equals_one_blue([]).
 color_the_neighbors_of_the_fixed_cells_with_clue_equals_one_blue([(X,Y)|Rest]):-
@@ -281,7 +277,7 @@ color_the_cells_that_all_their_neighbors_are_blue([(X,Y)|Rest]):-
     \+check_for_neighbors_being_blue(Neighbors) , color_the_cells_that_all_their_neighbors_are_blue(Rest).
 color_the_cells_that_all_their_neighbors_are_blue([(X,Y)|Rest]):-
     findall((Xn,Yn),neighbor((X,Y),(Xn,Yn)),Neighbors),
-    check_for_neighbors_being_blue(Neighbors) , color_cell_blue(X,Y) , color_the_cells_that_all_their_neighbors_are_blue(Rest).
+    check_for_neighbors_being_blue(Neighbors) , color_cell_blue(X,Y), print_grid , nl , nl , color_the_cells_that_all_their_neighbors_are_blue(Rest).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % ? III - Solving For Sea Cells With One Way Out :
 seas_one_way_out:-
@@ -330,7 +326,7 @@ sea_one_way_out(X,Y):-
             solve_cell(X,Yd,empty),
             color_cell_blue(X,Yd)
         )
-    ).
+    ),print_grid , nl , nl.
 sea_one_way_out(_,_).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % ? IV - Solving For Complete Islands :
@@ -358,7 +354,7 @@ surround_the_completed_island_with_blue([(X,Y)|Island]):-
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 surround_the_completed_island_cell_with_blue_helper([]).
 surround_the_completed_island_cell_with_blue_helper([(X,Y)|Neighbors]):-
-    solve_cell(X,Y,empty) , color_cell_blue(X,Y) , surround_the_completed_island_cell_with_blue_helper(Neighbors).
+    solve_cell(X,Y,empty) , color_cell_blue(X,Y) , print_grid , nl , nl , surround_the_completed_island_cell_with_blue_helper(Neighbors).
 surround_the_completed_island_cell_with_blue_helper([(X,Y)|Neighbors]):-
     \+solve_cell(X,Y,empty) , surround_the_completed_island_cell_with_blue_helper(Neighbors).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -373,7 +369,7 @@ solve_for_diag_adj_fxd_cells_helper([(X,Y)|FixedCells]):-
     Yur is Y+1,
     fxd_cell(Xur,Yur,_),
     color_cell_blue(Xur,Y),
-    color_cell_blue(X,Yur) , solve_for_diag_adj_fxd_cells_helper(FixedCells).
+    color_cell_blue(X,Yur), print_grid , nl , nl , solve_for_diag_adj_fxd_cells_helper(FixedCells).
 solve_for_diag_adj_fxd_cells_helper([(X,Y)|FixedCells]):-
     Xur is X+1,
     Yur is Y+1,
@@ -401,7 +397,7 @@ if_it_will_form_2x2_blue_block_color_it_green(X,Y):-
             solve_cell(X,Yu,blue), 
             solve_cell(Xl,Yu,blue)
         )
-    ),color_cell_green(X,Y).
+    ),color_cell_green(X,Y),print_grid,nl,nl.
 if_it_will_form_2x2_blue_block_color_it_green(_,_).
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 prevent_2x2_blue_blocks([]).
@@ -423,7 +419,7 @@ fxd_cell_separator(X,Y):-
         (fxd_cell(Xr,Y,_),fxd_cell(Xl,Y,_))
         ;
         (fxd_cell(X,Yd,_),fxd_cell(X,Yu,_))
-    ),color_cell_blue(X,Y).
+    ),color_cell_blue(X,Y), print_grid , nl , nl.
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 separate_fxd_cells([]).
 separate_fxd_cells([(X,Y)|Rest]):-
@@ -442,7 +438,7 @@ check_unreachable([(X,Y)|Rest]):-
     find_reachable_cells(FixedCells,[],NestedReachableCells),
     flatten(NestedReachableCells, ReachableCells),
     \+member((X,Y),ReachableCells),
-    color_cell_blue(X,Y),
+    color_cell_blue(X,Y),print_grid,nl,nl,
     check_unreachable(Rest).
 check_unreachable([(X,Y)|Rest]):-
     findall((Xf,Yf,N),fxd_cell(Xf,Yf,N),FixedCells),
@@ -469,9 +465,14 @@ find_paths((X,Y),L,Paths):-
 
 % ? - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 % ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+grid(7,7).
 init:-
     grid(R,C),
-    initialize_grid(R,C,[(1,2,3),(1,6,1),(3,1,2),(3,4,1),(5,2,1),(5,5,2),(6,3,2),(7,1,1),(7,5,1),(7,7,6)]).
+    %initialize_grid(R,C,[(1,2,3),(1,6,1),(3,1,2),(3,4,1),(5,2,1),(5,5,2),(6,3,2),(7,1,1),(7,5,1),(7,7,6)]).
+    %initialize_grid(R,C,[(1,1,1),(2,3,1),(3,1,1),(3,5,4),(4,3,2),(5,5,1)]).
+    %initialize_grid(R,C,[(2,1,2),(2,3,1),(2,5,2),(2,7,2),(4,3,1),(4,5,1),(6,1,2),(6,3,1),(6,5,1),(6,7,2)]).
+    initialize_grid(R,C,[(1,3,2),(2,2,3),(2,6,1),(3,4,4),(5,4,2),(6,2,1),(6,6,1)]).
+    %initialize_grid(R,C,[(1,2,3),(1,4,4),(3,3,1),(5,2,2),(5,4,1)]).
 solve_logically:-
     solve_for_fixed_cells_with_clue_equals_one,
     solve_for_cells_with_all_neighbors_blue,
@@ -486,3 +487,17 @@ solved:-
     one_sea,
     island_number_equals_size,
     one_fixed_cell_in_island.
+solve_logic(N):-
+    findall((X,Y),solve_cell(X,Y,empty),EmptyCells),
+    length(EmptyCells,L),
+    L =\= N,
+    solve_logically,
+    solve_logic(L).
+solve_logic(N):-
+    findall((X,Y),solve_cell(X,Y,empty),EmptyCells),
+    length(EmptyCells,L),
+    L =:= N,
+    solve_logically.
+solve_nurikabe:-
+    solve_logic(0),
+    solve_backtracking.
